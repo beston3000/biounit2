@@ -59,7 +59,7 @@
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     position: relative;
     text-align: center;
-    max-height: 90vh;
+    max-height: 95vh;
     overflow-y: auto;
   }
 
@@ -190,6 +190,38 @@
     animation: shakeWrong 0.4s ease;
   }
 
+  /* Hint System Styles */
+  #hint-container {
+    margin-top: 1.5rem;
+    min-height: 2.5rem;
+  }
+
+  .hint-btn {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+  }
+
+  .hint-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+  }
+
+  .hint-text {
+    color: #cbd5e1;
+    font-style: italic;
+    font-size: 0.95rem;
+    display: none;
+    background: rgba(15, 23, 42, 0.6);
+    padding: 0.75rem;
+    border-radius: 8px;
+    border-left: 4px solid var(--accent);
+  }
+
   .footer {
     display: flex;
     justify-content: space-between;
@@ -272,6 +304,13 @@
     
     <div class="question-text" id="question-text">Loading...</div>
     <div class="options-grid" id="options-grid"></div>
+
+    <div id="hint-container">
+      <button class="hint-btn" id="hint-btn" onclick="showHint()" style="display: none;">
+        <span style="font-family: monospace; font-weight: bold; margin-right: 5px;">H</span> Show Hint
+      </button>
+      <div class="hint-text" id="hint-text"></div>
+    </div>
   </div>
 
   <div class="footer">
@@ -293,6 +332,15 @@
     "Monosaccharides": 3,
     "Nucleic Acid": 2,
     "Polysaccharides": 1
+  };
+
+  const IMAGE_HINTS = {
+    "Amino Acid": "Look for a central carbon attached to an amino group (-NH2), a carboxyl group (-COOH), and an R group.",
+    "Disaccharide": "Look for exactly two simple sugar rings (hexagons or pentagons) joined by an oxygen bridge.",
+    "Fat": "Look for a vertical glycerol backbone bonded to three long horizontal fatty acid chains.",
+    "Monosaccharides": "Look for a single, isolated simple sugar ring (often a hexagon like glucose).",
+    "Nucleic Acid": "Look for three distinct parts: a phosphate group, a 5-carbon sugar, and a complex nitrogen-containing base.",
+    "Polysaccharides": "Look for a long chain or branches of many simple sugar rings bonded together."
   };
 
   const textQuestionsData = [
@@ -411,7 +459,6 @@
       o: ["Endothermic", "Exothermic", "Neutral", "Isotopic"],
       a: 1
     },
-    // NEW STRUCTURAL IDENTIFICATION QUESTIONS:
     {
       q: "How can you identify an unsaturated fatty acid by looking at its structure?",
       o: ["It has a nitrogen base.", "It forms a ring structure.", "It contains at least one carbon-carbon double bond.", "All of its carbons are bonded to hydrogens with single bonds."],
@@ -455,6 +502,8 @@
   const scoreDisplay = document.getElementById('score');
   const continueHint = document.getElementById('continue-hint');
   const gameArea = document.getElementById('game-area');
+  const hintBtn = document.getElementById('hint-btn');
+  const hintText = document.getElementById('hint-text');
 
   function shuffle(array) {
     let currentIndex = array.length, randomIndex;
@@ -477,13 +526,17 @@
   function initGame() {
     let pool = [];
     
-    // Add text questions
+    // Add & shuffle text questions
     textQuestionsData.forEach(item => {
+      // Map options to objects tracking their correctness, then shuffle them
+      let optionsWithFlags = item.o.map((text, i) => ({ text, isCorrect: i === item.a }));
+      optionsWithFlags = shuffle(optionsWithFlags);
+      
       pool.push({
         type: 'text',
         q: item.q,
-        options: item.o,
-        correctIndex: item.a
+        options: optionsWithFlags.map(opt => opt.text),
+        correctIndex: optionsWithFlags.findIndex(opt => opt.isCorrect)
       });
     });
 
@@ -498,7 +551,8 @@
           path: `${category}/${i}.png`,
           q: "Identify this organic molecule:",
           options: options,
-          correctIndex: correctIndex
+          correctIndex: correctIndex,
+          hint: IMAGE_HINTS[category]
         });
       }
     }
@@ -513,6 +567,9 @@
   function loadQuestion() {
     state = 'playing';
     continueHint.classList.remove('visible');
+    hintBtn.style.display = 'none';
+    hintText.style.display = 'none';
+    
     if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
 
     const q = gameQueue[currentQuestionIndex];
@@ -526,7 +583,7 @@
 
     questionText.textContent = q.q;
     
-    // Handle Image Display
+    // Handle Image Display and Hints
     if (q.type === 'image') {
       imageWrapper.style.display = 'flex';
       moleculeImage.style.display = 'none';
@@ -541,6 +598,10 @@
           imageError.textContent = `Missing file: ${q.path}`;
       };
       moleculeImage.src = q.path;
+      
+      // Setup hint
+      hintBtn.style.display = 'inline-block';
+      hintText.textContent = q.hint;
     } else {
       imageWrapper.style.display = 'none';
       optionsGrid.classList.add('single-col');
@@ -555,6 +616,13 @@
       btn.onclick = () => submitAnswer(i);
       optionsGrid.appendChild(btn);
     });
+  }
+
+  function showHint() {
+    if (state === 'playing') {
+      hintBtn.style.display = 'none';
+      hintText.style.display = 'block';
+    }
   }
 
   function submitAnswer(selectedIndex) {
@@ -601,6 +669,9 @@
     gameArea.classList.add('fade-in');
 
     imageWrapper.style.display = 'none';
+    hintBtn.style.display = 'none';
+    hintText.style.display = 'none';
+    
     questionText.innerHTML = `<strong>Review Complete!</strong><br><br>You scored ${score} out of ${gameQueue.length}.`;
     
     optionsGrid.classList.add('single-col');
@@ -616,8 +687,14 @@
     if (state === 'playing') {
       const key = parseInt(e.key);
       const q = gameQueue[currentQuestionIndex];
+      
+      // Number keys for answering
       if (key >= 1 && key <= q.options.length) {
         submitAnswer(key - 1);
+      }
+      // 'H' key for hints
+      if (e.key.toLowerCase() === 'h' && q.type === 'image') {
+        showHint();
       }
     } else if (state === 'waiting' && e.key === 'Enter') {
       nextQuestion();
