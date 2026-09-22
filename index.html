@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chemistry of Life & Organic Molecules</title>
+<style>
+  :root {
+    --bg-dark: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.75);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #38bdf8;
+    --correct: #22c55e;
+    --correct-bg: rgba(34, 197, 94, 0.2);
+    --wrong: #ef4444;
+    --wrong-bg: rgba(239, 68, 68, 0.2);
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-dark);
+    color: var(--text-main);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  /* Animated background blobs */
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    z-index: -1;
+    opacity: 0.4;
+    animation: float 10s ease-in-out infinite alternate;
+  }
+  .blob-1 { top: -10%; left: -10%; width: 500px; height: 500px; background: #38bdf8; }
+  .blob-2 { bottom: -10%; right: -10%; width: 400px; height: 400px; background: #818cf8; animation-delay: -5s; }
+
+  @keyframes float {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(50px, 50px) scale(1.1); }
+  }
+
+  .game-container {
+    background: var(--card-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    padding: 2.5rem;
+    width: 90%;
+    max-width: 800px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    position: relative;
+    text-align: center;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .header {
+    margin-bottom: 1.5rem;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .subtitle {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+  }
+
+  .progress-bar {
+    width: 100%;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+
+  .image-container {
+    height: 220px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1.5rem;
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 12px;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  #molecule-image {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 8px;
+    object-fit: contain;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.2);
+  }
+
+  .question-text {
+    font-size: 1.15rem;
+    margin-bottom: 1.5rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .options-grid.single-col {
+    grid-template-columns: 1fr;
+  }
+
+  .option-btn {
+    background: rgba(51, 65, 85, 0.4);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    color: var(--text-main);
+    padding: 1rem;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    text-align: left;
+  }
+
+  .option-btn:hover:not(:disabled) {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  .option-btn:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  .key-badge {
+    background: #0f172a;
+    border: 1px solid #475569;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-family: monospace;
+    font-weight: bold;
+    color: var(--text-muted);
+    margin-right: 15px;
+    flex-shrink: 0;
+  }
+
+  .option-btn.correct {
+    background: var(--correct-bg);
+    border-color: var(--correct);
+    color: var(--correct);
+    animation: pulseCorrect 0.5s ease;
+  }
+
+  .option-btn.wrong {
+    background: var(--wrong-bg);
+    border-color: var(--wrong);
+    color: var(--wrong);
+    animation: shakeWrong 0.4s ease;
+  }
+
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.95rem;
+  }
+
+  .stats { color: var(--text-muted); }
+  .score-val { color: var(--accent); font-weight: bold; font-size: 1.1rem; }
+
+  .continue-hint {
+    background: var(--accent);
+    color: var(--bg-dark);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: bold;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s;
+  }
+
+  .continue-hint.visible {
+    opacity: 1;
+    transform: translateY(0);
+    animation: pulseHint 2s infinite;
+  }
+
+  .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1); }
+  }
+
+  @keyframes pulseCorrect {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.02); }
+  }
+
+  @keyframes shakeWrong {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    50% { transform: translateX(5px); }
+    75% { transform: translateX(-5px); }
+  }
+
+  @keyframes pulseHint {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.4); }
+    50% { box-shadow: 0 0 0 8px rgba(56, 189, 248, 0); }
+  }
+
+  @media (max-width: 600px) {
+    .options-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div class="game-container">
+  <div class="header">
+    <h1>Chemistry of Life & Organic Molecules</h1>
+    <div class="subtitle">Comprehensive Review Game</div>
+  </div>
+
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill"></div>
+  </div>
+
+  <div id="game-area">
+    <div class="image-container" id="image-wrapper" style="display: none;">
+      <img id="molecule-image" src="" alt="Molecule Image" style="display: none;">
+      <div id="image-error" style="display: none; color: #ef4444;">Image not found. Check IMAGE_COUNTS variable.</div>
+    </div>
+    
+    <div class="question-text" id="question-text">Loading...</div>
+    <div class="options-grid" id="options-grid"></div>
+  </div>
+
+  <div class="footer">
+    <div class="stats">Score: <span class="score-val" id="score">0</span></div>
+    <div class="continue-hint" id="continue-hint">Press ENTER to continue</div>
+    <div class="stats">Question <span id="q-counter" class="score-val">0/0</span></div>
+  </div>
+</div>
+
+<script>
+  // ======================================================================
+  // IMAGE CONFIGURATION: Update these numbers to match the amount of .png 
+  // files you actually have in each of your folders.
+  // ======================================================================
+  const IMAGE_COUNTS = {
+    "Amino Acid": 3,
+    "Disaccharide": 1,
+    "Fat": 1,
+    "Monosaccharides": 3,
+    "Nucleic Acid": 2,
+    "Polysaccharides": 1
+  };
+
+  const textQuestionsData = [
+    {
+      q: "What is the smallest basic unit of matter that contains protons, neutrons, and electrons?",
+      o: ["Atom", "Molecule", "Ion", "Isotope"],
+      a: 0
+    },
+    {
+      q: "How do you calculate the number of neutrons in an atom?",
+      o: ["Atomic Mass + Atomic Number", "Atomic Mass - Atomic Number", "Protons + Electrons", "It equals the Atomic Number"],
+      a: 1
+    },
+    {
+      q: "What is an isotope?",
+      o: ["An atom with a different number of protons", "An atom with a different number of electrons", "An atom with a different number of neutrons", "A charged atom"],
+      a: 2
+    },
+    {
+      q: "What type of bond forms when atoms gain or lose electrons (transfer them between atoms)?",
+      o: ["Covalent bond", "Hydrogen bond", "Ionic bond", "Peptide bond"],
+      a: 2
+    },
+    {
+      q: "What type of bond forms when atoms share electrons (e.g., Water)?",
+      o: ["Ionic bond", "Covalent bond", "Hydrogen bond", "Metallic bond"],
+      a: 1
+    },
+    {
+      q: "Water molecules are attracted to other water molecules (creating surface tension). This is called:",
+      o: ["Adhesion", "Cohesion", "Polarity", "Capillary action"],
+      a: 1
+    },
+    {
+      q: "Water molecules are attracted to different substances (responsible for capillary action). This is called:",
+      o: ["Adhesion", "Cohesion", "Covalent bonding", "Ionic bonding"],
+      a: 0
+    },
+    {
+      q: "In a solution, the substance being dissolved is the ____, and the substance doing the dissolving is the ____.",
+      o: ["Solvent; Solute", "Solute; Solvent", "Product; Reactant", "Reactant; Product"],
+      a: 1
+    },
+    {
+      q: "An acid (pH less than 7) releases what type of ions when dissolved in water?",
+      o: ["Hydroxide ions (OH-)", "Sodium ions (Na+)", "Hydrogen ions (H+)", "Chloride ions (Cl-)"],
+      a: 2
+    },
+    {
+      q: "A base (pH greater than 7) removes hydrogen ions from a solution and releases:",
+      o: ["Hydroxide ions (OH-)", "Hydrogen ions (H+)", "Protons", "Neutrons"],
+      a: 0
+    },
+    {
+      q: "What process joins monomers into polymers by removing water?",
+      o: ["Hydrolysis", "Dehydration Synthesis", "Exothermic reaction", "Denaturing"],
+      a: 1
+    },
+    {
+      q: "What process breaks polymers into monomers by adding water?",
+      o: ["Hydrolysis", "Dehydration Synthesis", "Endothermic reaction", "Polymerization"],
+      a: 0
+    },
+    {
+      q: "Which macromolecule is the main source of energy and is built from monosaccharides?",
+      o: ["Proteins", "Nucleic Acids", "Lipids", "Carbohydrates"],
+      a: 3
+    },
+    {
+      q: "Fats and oils are lipids used for long-term energy storage. They consist of glycerol bonded to three:",
+      o: ["Amino acids", "Monosaccharides", "Fatty acids", "Nucleotides"],
+      a: 2
+    },
+    {
+      q: "Which type of fatty acid has all carbons bonded to a hydrogen (single bonds) and is solid at room temperature?",
+      o: ["Unsaturated fatty acid", "Saturated fatty acid", "Trans fat", "Cholesterol"],
+      a: 1
+    },
+    {
+      q: "Proteins are made of small subunits called _____, which are linked by peptide bonds.",
+      o: ["Amino acids", "Monosaccharides", "Nucleotides", "Fatty acids"],
+      a: 0
+    },
+    {
+      q: "All amino acids have an amino group, a central carbon, and a carboxyl group. What makes the 20 amino acids different from each other?",
+      o: ["The peptide bond", "The phosphate group", "The R group", "The nitrogen base"],
+      a: 2
+    },
+    {
+      q: "Which macromolecule stores genetic information (DNA) or provides immediate energy (ATP)?",
+      o: ["Proteins", "Lipids", "Carbohydrates", "Nucleic Acids"],
+      a: 3
+    },
+    {
+      q: "A nucleotide is made of 3 parts: a phosphate group, a sugar, and a:",
+      o: ["Amino group", "Carboxyl group", "Nitrogen base", "Fatty acid"],
+      a: 2
+    },
+    {
+      q: "Enzymes speed up chemical reactions by lowering the:",
+      o: ["Temperature", "Activation energy", "pH level", "Reactant concentration"],
+      a: 1
+    },
+    {
+      q: "An enzyme targets a specific molecule called a ______, which attaches to the enzyme at the ______.",
+      o: ["Product; Catalyst", "Substrate; Active site", "Reactant; Polymer", "Monomer; Peptide bond"],
+      a: 1
+    },
+    {
+      q: "Changes in temperature and pH can change an enzyme's shape, which stops it from working. This is called:",
+      o: ["Denaturing", "Synthesizing", "Polymerizing", "Hydrolysis"],
+      a: 0
+    },
+    {
+      q: "Which type of chemical reaction releases more energy than it absorbs?",
+      o: ["Endothermic", "Exothermic", "Neutral", "Isotopic"],
+      a: 1
+    }
+  ];
+
+  let gameQueue = [];
+  let currentQuestionIndex = 0;
+  let score = 0;
+  let state = 'playing'; 
+  let autoAdvanceTimer = null;
+
+  const imageWrapper = document.getElementById('image-wrapper');
+  const moleculeImage = document.getElementById('molecule-image');
+  const imageError = document.getElementById('image-error');
+  const questionText = document.getElementById('question-text');
+  const optionsGrid = document.getElementById('options-grid');
+  const progressFill = document.getElementById('progress-fill');
+  const qCounter = document.getElementById('q-counter');
+  const scoreDisplay = document.getElementById('score');
+  const continueHint = document.getElementById('continue-hint');
+  const gameArea = document.getElementById('game-area');
+
+  function shuffle(array) {
+    let currentIndex = array.length, randomIndex;
+    while (currentIndex > 0) {
+      randomIndex = Math.floor(Math.random() * currentIndex);
+      currentIndex--;
+      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+    }
+    return array;
+  }
+
+  function generateImageOptions(correctAnswer) {
+    const categories = Object.keys(IMAGE_COUNTS);
+    let wrongOptions = categories.filter(c => c !== correctAnswer);
+    wrongOptions = shuffle(wrongOptions).slice(0, 3);
+    let finalOptions = [...wrongOptions, correctAnswer];
+    return shuffle(finalOptions);
+  }
+
+  function initGame() {
+    let pool = [];
+    
+    // Add text questions
+    textQuestionsData.forEach(item => {
+      pool.push({
+        type: 'text',
+        q: item.q,
+        options: item.o,
+        correctIndex: item.a
+      });
+    });
+
+    // Add image questions
+    for (const category of Object.keys(IMAGE_COUNTS)) {
+      const count = IMAGE_COUNTS[category];
+      for (let i = 1; i <= count; i++) {
+        const options = generateImageOptions(category);
+        const correctIndex = options.indexOf(category);
+        pool.push({
+          type: 'image',
+          path: `${category}/${i}.png`,
+          q: "Identify this organic molecule:",
+          options: options,
+          correctIndex: correctIndex
+        });
+      }
+    }
+
+    gameQueue = shuffle(pool);
+    currentQuestionIndex = 0;
+    score = 0;
+    scoreDisplay.textContent = score;
+    loadQuestion();
+  }
+
+  function loadQuestion() {
+    state = 'playing';
+    continueHint.classList.remove('visible');
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+
+    const q = gameQueue[currentQuestionIndex];
+    
+    qCounter.textContent = `${currentQuestionIndex + 1}/${gameQueue.length}`;
+    progressFill.style.width = `${(currentQuestionIndex / gameQueue.length) * 100}%`;
+
+    gameArea.classList.remove('fade-in');
+    void gameArea.offsetWidth; 
+    gameArea.classList.add('fade-in');
+
+    questionText.textContent = q.q;
+    
+    // Handle Image Display
+    if (q.type === 'image') {
+      imageWrapper.style.display = 'flex';
+      moleculeImage.style.display = 'none';
+      imageError.style.display = 'none';
+      optionsGrid.classList.remove('single-col');
+      
+      moleculeImage.onload = () => {
+          moleculeImage.style.display = 'block';
+      };
+      moleculeImage.onerror = () => {
+          imageError.style.display = 'block';
+          imageError.textContent = `Missing file: ${q.path}`;
+      };
+      moleculeImage.src = q.path;
+    } else {
+      imageWrapper.style.display = 'none';
+      optionsGrid.classList.add('single-col');
+    }
+
+    // Load Options
+    optionsGrid.innerHTML = '';
+    q.options.forEach((opt, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.innerHTML = `<div class="key-badge">${i + 1}</div> <div>${opt}</div>`;
+      btn.onclick = () => submitAnswer(i);
+      optionsGrid.appendChild(btn);
+    });
+  }
+
+  function submitAnswer(selectedIndex) {
+    if (state !== 'playing') return;
+    state = 'waiting';
+
+    const q = gameQueue[currentQuestionIndex];
+    const buttons = optionsGrid.querySelectorAll('.option-btn');
+    
+    buttons.forEach(btn => btn.disabled = true);
+
+    if (selectedIndex === q.correctIndex) {
+      buttons[selectedIndex].classList.add('correct');
+      score++;
+      scoreDisplay.textContent = score;
+    } else {
+      buttons[selectedIndex].classList.add('wrong');
+      buttons[q.correctIndex].classList.add('correct');
+    }
+
+    continueHint.classList.add('visible');
+    autoAdvanceTimer = setTimeout(nextQuestion, 3000);
+  }
+
+  function nextQuestion() {
+    if (state === 'ended') return;
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+
+    currentQuestionIndex++;
+    if (currentQuestionIndex < gameQueue.length) {
+      loadQuestion();
+    } else {
+      endGame();
+    }
+  }
+
+  function endGame() {
+    state = 'ended';
+    continueHint.classList.remove('visible');
+    progressFill.style.width = '100%';
+    
+    gameArea.classList.remove('fade-in');
+    void gameArea.offsetWidth;
+    gameArea.classList.add('fade-in');
+
+    imageWrapper.style.display = 'none';
+    questionText.innerHTML = `<strong>Review Complete!</strong><br><br>You scored ${score} out of ${gameQueue.length}.`;
+    
+    optionsGrid.classList.add('single-col');
+    optionsGrid.innerHTML = `
+      <button class="option-btn" style="justify-content: center; background: rgba(56, 189, 248, 0.15); border-color: #38bdf8;" onclick="initGame()">
+        <div class="key-badge" style="width: auto; padding: 0 10px;">ENTER</div>
+        <div>Play Again</div>
+      </button>
+    `;
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (state === 'playing') {
+      const key = parseInt(e.key);
+      const q = gameQueue[currentQuestionIndex];
+      if (key >= 1 && key <= q.options.length) {
+        submitAnswer(key - 1);
+      }
+    } else if (state === 'waiting' && e.key === 'Enter') {
+      nextQuestion();
+    } else if (state === 'ended' && e.key === 'Enter') {
+      initGame();
+    }
+  });
+
+  initGame();
+</script>
+</body>
+</html>
